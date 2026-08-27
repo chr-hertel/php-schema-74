@@ -116,6 +116,7 @@ CODE_SAMPLE
         $class = new Class_($node->name, [
             'flags' => Class_::MODIFIER_FINAL,
             'extends' => new FullyQualified(self::POLYFILL_CLASS),
+            'implements' => $node->implements,
             'stmts' => array_merge($constants, $accessors, [$this->createDefinitionMethod($definition)], $rest),
         ], $this->carryOver($node));
 

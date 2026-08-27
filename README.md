@@ -40,14 +40,28 @@ re-run the port; do not edit `src/` by hand.
 composer install -d tools/downgrade   # Rector and PHP-CS-Fixer, needs PHP 8.2+
 bin/port                              # regenerate src/ and tests/
 bin/test                              # run the ported suite on PHP 7.4 (Docker)
+bin/parity                            # diff the public API against upstream
 ```
 
 `bin/port` reads the SDK checkout next door; point `UPSTREAM` elsewhere to
 override. `bin/lint` and `bin/test` run inside `php:7.4-cli`, because a
 downgrade nobody ran on a real 7.4 is a downgrade nobody verified.
 
-The port currently tracks upstream `e473c3c`. All 555 tests of the upstream
-schema suite pass unchanged against the ported sources.
+## What is verified
+
+All 555 tests of the upstream schema suite pass unchanged against the port, on
+PHP 7.4, 8.1 and 8.5.
+
+That suite is upstream's, so it reaches what upstream chose to test — a little
+over half the classes here. `bin/parity` covers the rest a different way: it
+reflects over both trees and reports any class, public method, arity or constant
+the port lost. It currently reports no differences across all 108 classes, which
+is the check that says the mechanical downgrade dropped nothing on the classes
+no test touches. Run it after every re-port.
+
+Neither of those proves *behaviour* for an untested class, only that its shape
+survived. Treat `Page`, the notification types, and the thinner request and
+result types as ported-but-unexercised.
 
 ## How it differs from the 8.1 original
 
@@ -67,6 +81,8 @@ PHP 7.4 has no enums. Each one becomes a final class extending
 | `$role->value`, `$role->name` | unchanged |
 | `Role::from()`, `::tryFrom()`, `::cases()` | unchanged |
 | `$a === $b` | unchanged; cases are singletons |
+| `clone $role` | throws, as it does upstream |
+| `unserialize(serialize($role))` | throws — a copy would fail `===` against its own case |
 | `Role::from('nope')` throws `\ValueError` | throws `Mcp\Exception\InvalidArgumentException` |
 | `$role instanceof \BackedEnum` | `instanceof Mcp\Schema\Enum\BackedEnum` |
 

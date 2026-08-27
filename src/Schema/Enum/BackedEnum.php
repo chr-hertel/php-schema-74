@@ -114,6 +114,22 @@ abstract class BackedEnum implements \JsonSerializable
     }
 
     /**
+     * PHP 8.1 makes an enum uncloneable and round-trips it through serialisation
+     * as the same instance. Neither is expressible here — a copy would compare
+     * unequal to its own case under `===`, so both routes are closed instead of
+     * quietly handing one out.
+     */
+    public function __clone()
+    {
+        throw new LogicException(\sprintf('Enum %s cannot be cloned; use %s::from($value) to reach a case.', static::class, static::class));
+    }
+
+    public function __wakeup()
+    {
+        throw new LogicException(\sprintf('Enum %s cannot be unserialised; store the backing value and use %s::from($value).', static::class, static::class));
+    }
+
+    /**
      * @return string|int
      */
     #[\ReturnTypeWillChange]

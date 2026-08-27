@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# Compares the port's public API against the upstream it was generated from.
+#
+# The ported suite is the upstream one, so it only reaches what upstream already
+# tests — around half these classes. This walks all of them.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+UPSTREAM="${UPSTREAM:-$ROOT/../php-sdk}"
+DUMP="$ROOT/tools/parity/api-surface.php"
+
+if [ ! -f "$UPSTREAM/vendor/autoload.php" ]; then
+    echo "error: run 'composer install' in $UPSTREAM first" >&2
+    exit 1
+fi
+
+mkdir -p "$ROOT/build"
+php "$DUMP" "$UPSTREAM/vendor/autoload.php" "$UPSTREAM/src/Schema" > "$ROOT/build/api-upstream.json"
+php "$DUMP" "$ROOT/vendor/autoload.php" "$ROOT/src/Schema" > "$ROOT/build/api-port.json"
+
+php "$ROOT/tools/parity/compare.php" "$ROOT/build/api-upstream.json" "$ROOT/build/api-port.json"
