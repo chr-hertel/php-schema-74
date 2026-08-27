@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: Syntax (PHP 7.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
+
+      - run: bin/lint
+
+  tests:
+    name: Tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      # Dependencies resolve against the platform pinned in composer.json, so
+      # every version in the matrix runs the same PHPUnit against the same code.
+      - uses: ramsey/composer-install@v3
+
+      - run: vendor/bin/phpunit
+
+  port:
+    name: Regenerate and compare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: port
+
+      - name: Read the pinned upstream revision
+        id: upstream
+        run: sed -n 's/^ref=/ref=/p' port/.upstream >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          repository: modelcontextprotocol/php-sdk
+          ref: ${{ steps.upstream.outputs.ref }}
+          path: php-sdk
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install the toolchain
+        working-directory: port
+        run: |
+          composer install --no-interaction --no-progress
+          composer install --no-interaction --no-progress -d tools/downgrade
+
+      - name: Install upstream
+        working-directory: php-sdk
+        run: composer install --no-interaction --no-progress
+
+      # src/ and tests/ are generated. If regenerating them from the pinned
+      # revision produces anything else, someone edited the output by hand or
+      # the toolchain moved underneath it.
+      - name: Regenerate
+        working-directory: port
+        env:
+          UPSTREAM: ${{ github.workspace }}/php-sdk
+        run: bin/port
+
+      - name: Check the committed output matches
+        working-directory: port
+        run: git diff --exit-code -- src tests
+
+      - name: Compare the public API against upstream
+        working-directory: port
+        env:
+          UPSTREAM: ${{ github.workspace }}/php-sdk
+        run: bin/parity

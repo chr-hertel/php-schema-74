@@ -1,5 +1,7 @@
 # mcp/schema-74
 
+[![CI](https://github.com/chr-hertel/php-schema-74/actions/workflows/ci.yml/badge.svg)](https://github.com/chr-hertel/php-schema-74/actions/workflows/ci.yml)
+
 A PHP 7.4 port of the `Mcp\Schema` namespace of the [official PHP MCP SDK](https://github.com/modelcontextprotocol/php-sdk).
 
 The SDK itself requires PHP 8.1. Its schema layer — the JSON-RPC envelopes, the
@@ -44,13 +46,17 @@ bin/parity                            # diff the public API against upstream
 ```
 
 `bin/port` reads the SDK checkout next door; point `UPSTREAM` elsewhere to
-override. `bin/lint` and `bin/test` run inside `php:7.4-cli`, because a
-downgrade nobody ran on a real 7.4 is a downgrade nobody verified.
+override. The revision it was last generated from is pinned in `.upstream`, and
+`bin/port` warns when the checkout it is reading disagrees.
+
+`bin/lint` and `bin/test` run against a real 7.4 — the interpreter on `PATH` if
+that is already 7.4, `php:7.4-cli` under Docker otherwise. A downgrade nobody
+ran on a real 7.4 is a downgrade nobody verified.
 
 ## What is verified
 
-All 555 tests of the upstream schema suite pass unchanged against the port, on
-PHP 7.4, 8.1 and 8.5.
+All 555 tests of the upstream schema suite pass unchanged against the port. CI
+runs them on 7.4 through 8.4, and checks the sources parse under 7.4.
 
 That suite is upstream's, so it reaches what upstream chose to test — a little
 over half the classes here. `bin/parity` covers the rest a different way: it
@@ -62,6 +68,11 @@ no test touches. Run it after every re-port.
 Neither of those proves *behaviour* for an untested class, only that its shape
 survived. Treat `Page`, the notification types, and the thinner request and
 result types as ported-but-unexercised.
+
+CI also regenerates `src/` and `tests/` from the pinned revision and fails if the
+result differs from what is committed, so a hand-edit to generated code cannot
+land quietly. The toolchain is locked and its output is byte-identical across
+PHP 8.4 and 8.5.
 
 ## How it differs from the 8.1 original
 

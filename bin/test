@@ -5,6 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${PHP74_IMAGE:-php:7.4-cli}"
+# shellcheck source=_php74.sh
+. "$ROOT/bin/_php74.sh"
 
-docker run --rm -v "$ROOT:/app" -w /app "$IMAGE" php vendor/bin/phpunit "$@"
+php74_sh "php vendor/bin/phpunit $*"

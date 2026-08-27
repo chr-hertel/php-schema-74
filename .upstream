@@ -1,0 +1,4 @@
+# The upstream commit src/ and tests/ were generated from. bin/port checks the
+# local checkout against this; CI clones exactly this ref.
+repository=https://github.com/modelcontextprotocol/php-sdk.git
+ref=e473c3c1158fa63c1a1d17324d3163bfde82a0e9

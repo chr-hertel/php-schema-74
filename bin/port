@@ -23,6 +23,15 @@ if [ ! -d "$UPSTREAM/src/Schema" ]; then
     exit 1
 fi
 
+# A port generated from a different revision than the one recorded is a port
+# nobody can reproduce, so say so rather than quietly emitting something else.
+PINNED_REF="$(sed -n 's/^ref=//p' "$ROOT/.upstream")"
+LOCAL_REF="$(git -C "$UPSTREAM" rev-parse HEAD 2>/dev/null || echo unknown)"
+if [ "$PINNED_REF" != "$LOCAL_REF" ]; then
+    echo "warning: $UPSTREAM is at $LOCAL_REF, .upstream pins $PINNED_REF" >&2
+    echo "         update .upstream once the regenerated output looks right" >&2
+fi
+
 if [ ! -x "$RECTOR" ]; then
     echo "error: run 'composer install' in tools/downgrade first" >&2
     exit 1

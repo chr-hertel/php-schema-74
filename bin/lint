@@ -6,18 +6,19 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${PHP74_IMAGE:-php:7.4-cli}"
-REPORT="$ROOT/build/lint.txt"
+# shellcheck source=_php74.sh
+. "$ROOT/bin/_php74.sh"
 
+REPORT="$ROOT/build/lint.txt"
 mkdir -p "$ROOT/build"
-docker run --rm -v "$ROOT:/app" -w /app "$IMAGE" \
-    sh -c 'for f in $(find src tests -name "*.php" | sort); do php -l "$f" 2>&1 | grep -v "^No syntax errors" || true; done' \
+
+php74_sh 'for f in $(find src tests -name "*.php" | sort); do php -l "$f" 2>&1 | grep -v "^No syntax errors" || true; done' \
     > "$REPORT"
 
 if [ -s "$REPORT" ]; then
     cat "$REPORT"
-    echo "error: PHP 7.4 syntax errors above ($(grep -c '^Errors parsing' "$REPORT" || true) files)" >&2
+    echo "error: PHP 7.4 syntax errors above" >&2
     exit 1
 fi
 
-echo "PHP 7.4 syntax check passed"
+echo "PHP 7.4 syntax check passed ($(find "$ROOT/src" "$ROOT/tests" -name '*.php' | wc -l | tr -d ' ') files)"
