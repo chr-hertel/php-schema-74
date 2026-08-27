@@ -1,0 +1,38 @@
+{
+    "name": "mcp/schema-74",
+    "description": "PHP 7.4 compatible port of the Mcp\\Schema namespace of the official PHP MCP SDK",
+    "license": "Apache-2.0",
+    "type": "library",
+    "keywords": ["mcp", "model-context-protocol", "schema", "php74"],
+    "authors": [
+        {
+            "name": "Christopher Hertel",
+            "email": "mail@christopher-hertel.de"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "conflict": {
+        "mcp/sdk": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mcp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Mcp\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "7.4.33"
+        }
+    }
+}

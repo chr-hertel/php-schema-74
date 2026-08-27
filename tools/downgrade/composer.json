@@ -1,0 +1,21 @@
+{
+    "name": "mcp/schema-74-downgrade",
+    "description": "Build-time toolchain that downgrades Mcp\\Schema from PHP 8.1 to PHP 7.4.",
+    "type": "project",
+    "license": "Apache-2.0",
+    "require": {
+        "php": ">=8.2",
+        "rector/rector": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mcp\\Downgrade\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "require-dev": {
+        "php-cs-fixer/shim": "^3.91"
+    }
+}

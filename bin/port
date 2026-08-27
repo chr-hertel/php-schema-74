@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# Regenerates src/ and tests/ from the PHP 8.1 upstream SDK.
+#
+# Needs PHP 8.2+ for Rector; the code it emits targets PHP 7.4.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+UPSTREAM="${UPSTREAM:-$ROOT/../php-sdk}"
+STAGE="$ROOT/build/stage"
+RECTOR="$ROOT/tools/downgrade/vendor/bin/rector"
+
+# Rector picks up the composer autoloader of its working directory; from the
+# project root that would resolve the staged classes to the previous build
+# in src/, where the enums it has to reflect on are already plain classes.
+rector() {
+    (cd "$ROOT/build" && "$RECTOR" process --config "$ROOT/tools/downgrade/$1" --no-progress-bar --no-diffs --clear-cache)
+}
+
+if [ ! -d "$UPSTREAM/src/Schema" ]; then
+    echo "error: upstream SDK not found at $UPSTREAM" >&2
+    exit 1
+fi
+
+if [ ! -x "$RECTOR" ]; then
+    echo "error: run 'composer install' in tools/downgrade first" >&2
+    exit 1
+fi
+
+echo "==> staging upstream sources from $UPSTREAM"
+rm -rf "$ROOT/build"
+mkdir -p "$STAGE/Exception" "$STAGE/Tests"
+cp -R "$UPSTREAM/src/Schema" "$STAGE/Schema"
+for exception in ExceptionInterface InvalidArgumentException LogicException RuntimeException; do
+    cp "$UPSTREAM/src/Exception/$exception.php" "$STAGE/Exception/"
+done
+mkdir -p "$STAGE/Tests/Unit"
+cp -R "$UPSTREAM/tests/Unit/Schema" "$STAGE/Tests/Unit/Schema"
+
+echo "==> applying pre-downgrade patches"
+"$ROOT/bin/patch-stage" "$STAGE"
+
+echo "==> pass 1: enum case references"
+rector rector-enum-fetches.php
+
+echo "==> pass 2: enum declarations to the PHP 7.4 polyfill"
+rector rector-enums.php
+
+echo "==> installing runtime support"
+cp -R "$ROOT/runtime/." "$STAGE/"
+
+echo "==> pass 3: PHP 8.1 to PHP 7.4"
+rector rector-php74.php
+
+echo "==> pass 4: hoisting call-valued defaults"
+rector rector-hoist.php
+
+echo "==> restyling"
+PHP_CS_FIXER_IGNORE_ENV=1 "$ROOT/tools/downgrade/vendor/bin/php-cs-fixer" fix \
+    --config "$ROOT/tools/downgrade/php-cs-fixer.php" --quiet
+
+echo "==> applying post-downgrade patches"
+"$ROOT/bin/patch-stage" --post "$STAGE"
+
+echo "==> publishing to src/ and tests/"
+rm -rf "$ROOT/src" "$ROOT/tests"
+mkdir -p "$ROOT/src" "$ROOT/tests"
+cp -R "$STAGE/Schema" "$STAGE/Exception" "$ROOT/src/"
+cp -R "$STAGE/Tests/Unit" "$ROOT/tests/Unit"
+
+echo "==> linting"
+"$ROOT/bin/lint"
+
+echo "done: $(find "$ROOT/src" -name '*.php' | wc -l | tr -d ' ') files in src/, $(find "$ROOT/tests" -name '*.php' | wc -l | tr -d ' ') in tests/"

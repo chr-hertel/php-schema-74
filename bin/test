@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#
+# Runs the ported test suite against a real PHP 7.4.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IMAGE="${PHP74_IMAGE:-php:7.4-cli}"
+
+docker run --rm -v "$ROOT:/app" -w /app "$IMAGE" php vendor/bin/phpunit "$@"

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#
+# Source edits Rector cannot express, applied to the staged tree.
+#
+# Every edit has to change its file: an upstream rename that made a patch a
+# no-op would otherwise leave a silent gap in the port.
+
+set -euo pipefail
+
+PHASE="pre"
+if [ "${1:-}" = "--post" ]; then
+    PHASE="post"
+    shift
+fi
+
+STAGE="$1"
+
+replace() {
+    local file="$1" script="$2" before after
+    if [ ! -f "$file" ]; then
+        echo "error: patch target $file does not exist" >&2
+        exit 1
+    fi
+    before="$(shasum "$file" | cut -d' ' -f1)"
+    perl -0pi -e "$script" "$file"
+    after="$(shasum "$file" | cut -d' ' -f1)"
+    if [ "$before" = "$after" ]; then
+        echo "error: patch left $file unchanged: $script" >&2
+        exit 1
+    fi
+}
+
+if [ "$PHASE" = "pre" ]; then
+    # The extension interface only names the SDK's request handler in a docblock
+    # generic; the class itself lives outside the schema and is not ported.
+    replace "$STAGE/Schema/Extension/ExtensionInterface.php" \
+        's{^use Mcp\\Server\\Handler\\Request\\RequestHandlerInterface;\n}{}m; s{iterable<RequestHandlerInterface<ResultInterface>>}{iterable<object>}g'
+
+    # Implementations return `static`, which the downgrade erases; PHP 7.4 has no
+    # way to widen a return type back, so the interface has to drop its own.
+    replace "$STAGE/Schema/JsonRpc/HasMethodInterface.php" \
+        's{\@param array<string, mixed> \$data\n     \*/\n    public static function fromArray\(array \$data\): self;}{\@param array<string, mixed> \$data\n     *\n     * \@return static\n     */\n    public static function fromArray(array \$data);}'
+fi
+
+if [ "$PHASE" = "post" ]; then
+    # PHP 7.4 has no ValueError; the enum polyfill reports a bad backing value
+    # through the SDK's own exception hierarchy instead.
+    replace "$STAGE/Tests/Unit/Schema/Enum/ElicitActionTest.php" \
+        's{\\ValueError::class}{\\Mcp\\Exception\\InvalidArgumentException::class}g'
+fi

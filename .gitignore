@@ -1,0 +1,4 @@
+/build/
+/vendor/
+/tools/downgrade/vendor/
+/.phpunit.result.cache
